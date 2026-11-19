@@ -1,13 +1,16 @@
 # Protótipo: `prototipo/scae.html`
 
-Desde 18/11/2026 o protótipo é **o sistema do Almox inteiro adaptado para o SCAE**, num arquivo HTML único (cerca de 5,8 MB, porque leva junto as fontes, o gerador de PDF, o leitor de planilhas e o leitor de código de barras). Os dados ficam no navegador, sem servidor e sem Firebase.
+Desde 18/11/2026 o protótipo é **o sistema do Almox inteiro adaptado para o SCAE**, num arquivo HTML único (cerca de 5,8 MB, porque leva junto as fontes, o gerador de PDF, o leitor de planilhas e o leitor de código de barras). Desde 19/11/2026 ele sincroniza com o Firestore do projeto Firebase **SCAE** (`suprimo-fb90d`).
 
 A versão anterior, um protótipo de telas feito do zero (193 KB), ficou guardada em `prototipo/versoes-antigas/scae-prototipo-2026-11-17.html`, só como referência.
 
 ## Como funciona
 
-- **Modo local, sem login.** O arquivo define `window.SCAE_LOCAL = true`. Com isso, `iniciarAcesso()` libera o sistema direto, sem tela de login e sem nuvem. O código de login do Almox (`telaLogin`, `FB.*`, `Nuvem`, `emailAutorizado`) continua no arquivo, desligado.
-- **Várias empresas no mesmo navegador** (`SCAE_EMPRESAS`, no fim do arquivo). Começa com a "Empresa de demonstração". O botão da empresa, no topo do menu, troca de empresa ou cria uma nova. A separação é **só do navegador**: o acesso de verdade vai exigir login e regras no servidor (veja `arquitetura.md`).
+- **Dois modos.** `window.SCAE_LOCAL` é verdadeiro quando o arquivo é aberto do disco (duplo clique) ou com `?local` no endereço. Nesse caso não há login, e os dados ficam só no `localStorage`. Pelo site ou por um servidor local, o SCAE usa a **nuvem**: tela de login Google, `iniciarAcesso()`, e depois a sincronização em tempo real pelo objeto `Nuvem`.
+- **Ponte com o Firebase:** o `<script type="module">` logo depois da definição de `SCAE_LOCAL` carrega o SDK oficial (versão 12.5.0, do `gstatic.com`) e cria `window.FB` com `db`, `fs` (todas as funções do Firestore), `aoMudarUsuario`, `entrarComGoogle` e `sair`. Depois avisa com o evento `fb-pronto` (ou `fb-erro`). O Firestore usa cache local persistente, então continua funcionando por um tempo sem internet.
+- **Quem entra:** os e-mails de `EMAILS_AUTORIZADOS` (hoje só o do Anderson). As regras em `firestore.rules` repetem a lista; as duas precisam ser iguais.
+- **Onde os dados ficam na nuvem:** `empresas/{id da empresa}/{coleção}/{documento}`, com uma coleção para cada item de `COLECOES` (produtos, notas, movimentos, cotações, ferramentas...). A função `empresaNuvem()` devolve o id da empresa aberta.
+- **Várias empresas** (`SCAE_EMPRESAS`, no fim do arquivo). Começa com a "Empresa de demonstração" (`demo`). O botão da empresa, no topo do menu, troca de empresa ou cria uma nova. **A lista de empresas ainda fica só no navegador.** Os dados de cada empresa sincronizam, mas uma empresa criada num aparelho não aparece na lista do outro. Esse é o próximo passo.
 - **Logo da empresa:** enviada em **Dados e backup → Identidade da empresa** (PNG ou JPG de até 5 MB, reduzida para no máximo 600 px). Aparece no menu e nos comprovantes.
 - **Logo do SCAE:** embutida no arquivo. As constantes `LOGO_SCAE_CLARO` e `LOGO_SCAE_ESCURO` guardam o SVG da pasta `marca/`. O destaque do painel e o login usam a versão de texto branco, sobre a placa azul-marinho. A identificação do painel troca de versão conforme o tema. As logos do menu lateral, do celular e do topo são PNGs embutidos que vieram do Almox.
 - **Chaves no `localStorage`:**

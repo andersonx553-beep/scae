@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Contas com acesso ao SCAE. Repita a lista em EMAILS_AUTORIZADOS, no prototipo/scae.html.
+    function autorizado() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['andersonx553@gmail.com'];
+    }
+
+    // SCAE: cada empresa numa pasta própria (empresas/{id}/...).
+    match /empresas/{empresa}/{documento=**} {
+      allow read, write: if autorizado();
+    }
+
+    // Dados antigos do Suprimo, guardados como estavam.
+    match /users/{uid}/{documento=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email == 'andersonx553@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+  }
+}
