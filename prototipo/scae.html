@@ -1186,7 +1186,47 @@ table.map{width:100%;border-collapse:collapse;table-layout:fixed;min-width:760px
 
 </script>
 <!-- Versão local do SCAE. A integração com contas e Firestore requer configuração própria. -->
-<script>window.SCAE_LOCAL = true;</script>
+<script>
+/* Modo local (dados só no navegador): arquivo aberto do disco ou endereço com ?local.
+   Fora disso o SCAE usa a nuvem: login Google e Firestore do projeto SCAE (suprimo-fb90d). */
+window.SCAE_LOCAL = location.protocol === 'file:' || new URLSearchParams(location.search).has('local');
+</script>
+<script type="module">
+/* Ponte com o Firebase: carrega o SDK oficial e expõe window.FB para o login (iniciarAcesso)
+   e a sincronização (Nuvem). A configuração web é pública; quem protege os dados são as
+   regras do Firestore (firestore.rules). */
+if (!window.SCAE_LOCAL) {
+  const V = '12.5.0', base = `https://www.gstatic.com/firebasejs/${V}/`;
+  try {
+    const [appSdk, authSdk, fs] = await Promise.all([
+      import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')
+    ]);
+    const app = appSdk.initializeApp({
+      apiKey: 'AIzaSyCrl1ofZ-AykgqBgkv4SvaQ7_nadCDAJWk',
+      authDomain: 'suprimo-fb90d.firebaseapp.com',
+      projectId: 'suprimo-fb90d',
+      storageBucket: 'suprimo-fb90d.firebasestorage.app',
+      messagingSenderId: '556484106092',
+      appId: '1:556484106092:web:3dceca171bfa208b3dc549'
+    });
+    const auth = authSdk.getAuth(app);
+    let db;
+    try { db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) }); }
+    catch { db = fs.getFirestore(app); }
+    window.FB = {
+      db, fs,
+      aoMudarUsuario: cb => authSdk.onAuthStateChanged(auth, cb),
+      entrarComGoogle: () => authSdk.signInWithPopup(auth, new authSdk.GoogleAuthProvider()),
+      sair: () => authSdk.signOut(auth)
+    };
+    window.dispatchEvent(new Event('fb-pronto'));
+  } catch (e) {
+    console.error('Firebase não carregou', e);
+    window.FB_ERRO = e;
+    window.dispatchEvent(new Event('fb-erro'));
+  }
+}
+</script>
 <!-- App: a ordem importa (ver js/ORDEM.txt) -->
 <script>
 /* =========================================================
@@ -1861,7 +1901,7 @@ const Scan = {
    Abrindo index.html direto do disco (file://) o login não é
    exigido: é o modo de teste local, sem nuvem.
    ========================================================= */
-const EMAILS_AUTORIZADOS = []; // Login desativado nesta versão local do SCAE.
+const EMAILS_AUTORIZADOS = ['andersonx553@gmail.com']; // Contas com acesso à nuvem. As regras do Firestore repetem esta lista.
 const Acesso = { usuario:null, iniciado:false, aoLiberar:null };
 
 const emailAutorizado = u => !!(u && u.email && u.emailVerified !== false && EMAILS_AUTORIZADOS.includes(u.email.toLowerCase()));
@@ -1933,7 +1973,7 @@ function iniciarAcesso(aoLiberar){
       const mail = esc(u.email || 'esta conta');
       Acesso.usuario = null; encerrarSessao(); renderUsuario();
       try { await FB.sair(); } catch {}
-      telaLogin(`A conta <strong>${mail}</strong> não tem permissão para acessar o Almox. Entre com uma conta autorizada.`);
+      telaLogin(`A conta <strong>${mail}</strong> não tem permissão para acessar o SCAE. Entre com uma conta autorizada.`);
       return;
     }
     Acesso.usuario = u; liberarApp();
@@ -1971,13 +2011,15 @@ const clonar = v => v === undefined ? undefined : JSON.parse(JSON.stringify(v));
 const corpoDoc = (c, o) => { const fora = FORA_DO_ENVIO[c] || []; const b = {}; Object.keys(o).forEach(k => { if (k === 'id' || k[0] === '_' || fora.includes(k) || o[k] === undefined) return; b[k] = clonar(o[k]); }); return b; };
 const jsonCampos = b => { const r = {}; Object.keys(b || {}).forEach(k => r[k] = JSON.stringify(b[k])); return r; };
 
+/* Cada empresa do SCAE fica numa pasta própria do Firestore: empresas/{id}/... */
+function empresaNuvem(){ return (window.SCAE_EMPRESAS && SCAE_EMPRESAS.id) || CONDO_ID; }
 const Nuvem = {
   ativo:false, pronto:false, erro:'', pendentes:0, vaziaComLocal:false, semeando:false, limpou:false, produtosServidor:false,
   snap:{}, geral:null, tentar:null, ops:[], codigos:[], fotos:{}, unsub:[], timerRender:0, ultimoAviso:0,
   liberados:new Set(),   /* ids que "Desfazer importação" apaga de propósito: não entram na trava de apagar demais */
 
   disponivel:() => !window.SCAE_LOCAL && location.protocol !== 'file:' && !!(window.FB && window.FB.db),
-  ref(c, id){ return id ? FB.fs.doc(FB.db, 'condominios', CONDO_ID, c, id) : FB.fs.collection(FB.db, 'condominios', CONDO_ID, c); },
+  ref(c, id){ return id ? FB.fs.doc(FB.db, 'empresas', empresaNuvem(), c, id) : FB.fs.collection(FB.db, 'empresas', empresaNuvem(), c); },
   // Hoje e os 89 dias civis anteriores; alvo idêntico durante todo o dia em Fortaleza.
   desde:() => DatasAlmox.inicio(DatasAlmox.deslocar(DatasAlmox.dia(),1-PERIODO_DIAS)),
   geracao:0, timerInicio:0, timerDia:0, timerErro:0, periodoUnsub:[],

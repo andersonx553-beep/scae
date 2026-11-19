@@ -20,3 +20,10 @@ Resumo, em ordem, do que foi pedido e decidido na sessão do Claude Code na nuve
 13. **Nova versão do protótipo:** o Anderson trouxe uma versão nova do `scae.html` (o sistema do Almox inteiro adaptado para o SCAE, cerca de 5,8 MB), que passou a ser o protótipo oficial. A versão anterior foi guardada em `prototipo/versoes-antigas/`.
 14. **Logo do SCAE:** a versão nova procurava um arquivo `assets/img/scae-logo.png` que não existia. A logo passou a ficar embutida no HTML, a partir dos SVGs de `marca/`, com a versão certa para cada fundo e tema.
 15. **Documentação:** `CLAUDE.md` e `docs/prototipo.md` foram atualizados para a versão nova.
+16. **Pasta nova e agente:** o projeto passou para `C:\scae` (sem espaço no caminho) e ganhou o agente de almoxarifado em `agente/`.
+17. **GitHub:** o repositório `suprimo.html` recebeu o SCAE no lugar do Suprimo (o código antigo continua no histórico). As 11 branches antigas foram apagadas.
+
+## 19/11/2026
+
+18. **Nomes:** o repositório virou `scae`. No Firebase, o projeto do Suprimo virou **SCAE** (nome do projeto, nome público e apelido do app). O ID `suprimo-fb90d` não pode ser trocado. O Almox (`almox-aqua`) não foi tocado.
+19. **Sincronização:** o SCAE ganhou a ponte com o Firebase e passou a sincronizar com o Firestore, com login Google, em `empresas/{id}/...`. As regras novas foram publicadas (`firestore.rules`). Teste: um setor cadastrado pela tela chegou ao servidor em `empresas/demo/setores/...`.
