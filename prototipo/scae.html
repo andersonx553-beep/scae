@@ -1201,7 +1201,7 @@ if (!window.SCAE_LOCAL) {
     const [appSdk, authSdk, fs] = await Promise.all([
       import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')
     ]);
-    /* App Check: chave do site do reCAPTCHA (Fraud Defense / Enterprise), cadastrada em Firebase → App Check. Em localhost usa o token de depuração,
+    /* App Check: chave do site do reCAPTCHA v3 (clássico), cadastrada em Firebase → App Check → provedor "reCAPTCHA" com a chave secreta. Em localhost usa o token de depuração,
        que aparece no console do navegador e precisa ser cadastrado em App Check → Gerenciar tokens de depuração. */
     const RECAPTCHA_SITE_KEY = '6Lft3CguAAAAAFiDm-2vTUIa6HAeaKdl5p7Bfx6B';
     const app = appSdk.initializeApp({
@@ -1221,7 +1221,7 @@ if (!window.SCAE_LOCAL) {
       const [aiSdk, checkSdk] = await Promise.all([import(base + 'firebase-ai.js'), import(base + 'firebase-app-check.js')]);
       if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
       if (RECAPTCHA_SITE_KEY || self.FIREBASE_APPCHECK_DEBUG_TOKEN)
-        checkSdk.initializeAppCheck(app, { provider: new checkSdk.ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY || 'debug'), isTokenAutoRefreshEnabled: true });
+        checkSdk.initializeAppCheck(app, { provider: new checkSdk.ReCaptchaV3Provider(RECAPTCHA_SITE_KEY || 'debug'), isTokenAutoRefreshEnabled: true });
       const ai = aiSdk.getAI(app, { backend: new aiSdk.GoogleAIBackend() });
       lerOrcamentoIA = (bytes, mime, itensCotacao) => window.SCAE_IA.lerOrcamento(aiSdk, ai, bytes, mime, itensCotacao);
     } catch (e) { console.warn('Leitura por IA indisponível', e); }
