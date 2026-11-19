@@ -27,3 +27,4 @@ Resumo, em ordem, do que foi pedido e decidido na sessão do Claude Code na nuve
 
 18. **Nomes:** o repositório virou `scae`. No Firebase, o projeto do Suprimo virou **SCAE** (nome do projeto, nome público e apelido do app). O ID `suprimo-fb90d` não pode ser trocado. O Almox (`almox-aqua`) não foi tocado.
 19. **Sincronização:** o SCAE ganhou a ponte com o Firebase e passou a sincronizar com o Firestore, com login Google, em `empresas/{id}/...`. As regras novas foram publicadas (`firestore.rules`). Teste: um setor cadastrado pela tela chegou ao servidor em `empresas/demo/setores/...`.
+20. **Lista de empresas na nuvem:** as empresas passaram a ficar em `empresas/{id}`, iguais em todos os aparelhos. Teste: uma empresa criada pela tela apareceu num "aparelho novo" (lista do navegador apagada); depois a empresa de teste foi apagada da nuvem.

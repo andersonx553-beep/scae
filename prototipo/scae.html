@@ -4134,7 +4134,7 @@ function init(){
   SCAE_EMPRESAS.inicializar();
   iniciarAcesso(() => {
     const abrir = () => { renderStorage(); const r = location.hash.slice(1); go(ROUTES[r] ? r : 'painel'); revelarApp(); };
-    if (Nuvem.disponivel()){ telaCarregando('Carregando os dados…'); Nuvem.iniciar(abrir); }
+    if (Nuvem.disponivel()){ telaCarregando('Carregando os dados…'); SCAE_EMPRESAS.sincronizar().finally(() => Nuvem.iniciar(abrir)); }
     else { load(); if (STORAGE_OK) save(); abrir(); }
   });
 }
@@ -9491,10 +9491,30 @@ const SCAE_EMPRESAS = {
     KEY='scae.empresa.'+this.id+'.v1';
     this.persistir();
   },
+  /* Na nuvem, a lista de empresas fica em empresas/{id} (campo nome), igual em todos os aparelhos.
+     Empresas que só existem neste navegador sobem para a nuvem na primeira vez. */
+  async sincronizar(){
+    if (!(window.FB && FB.db)) return;
+    const F = FB.fs, espera = new Promise((_, falha) => setTimeout(() => falha(new Error('tempo esgotado')), 10000));
+    try {
+      const s = await Promise.race([F.getDocs(F.collection(FB.db, 'empresas')), espera]);
+      const nuvem = s.docs.filter(d => (d.data() || {}).nome).map(d => ({ id:d.id, nome:d.data().nome }));
+      for (const e of this.lista.filter(e => !nuvem.some(n => n.id === e.id))){
+        await F.setDoc(F.doc(FB.db, 'empresas', e.id), { nome:e.nome, criadaEm:new Date().toISOString() }, { merge:true });
+        nuvem.push(e);
+      }
+      if (!nuvem.length) return;
+      nuvem.sort((a, b) => a.id === 'demo' ? 1 : b.id === 'demo' ? -1 : a.nome.localeCompare(b.nome, 'pt-BR'));
+      this.lista = nuvem;
+      if (!this.lista.some(e => e.id === this.id)) this.id = this.lista[0].id;
+      KEY = 'scae.empresa.' + this.id + '.v1';
+      this.persistir();
+    } catch (e) { console.warn('Lista de empresas da nuvem indisponível; usando a deste navegador.', e); }
+  },
   persistir(){try{localStorage.setItem('scae.empresas.v1',JSON.stringify(this.lista));localStorage.setItem('scae.empresa.ativa',this.id);}catch{}},
   decorar(){
     const ativa=this.lista.find(e=>e.id===this.id), nome=db.empresa.nome||ativa?.nome||'Empresa';
-    if(!db.empresa.nome){db.empresa.nome=nome;save();}if (ativa && ativa.nome!==nome){ativa.nome=nome;this.persistir();}
+    if(!db.empresa.nome){db.empresa.nome=nome;save();}if (ativa && ativa.nome!==nome){ativa.nome=nome;this.persistir();if(Nuvem.ativo&&window.FB&&FB.db)FB.fs.setDoc(FB.fs.doc(FB.db,'empresas',ativa.id),{nome},{merge:true}).catch(()=>{});}
     const box=$('#scae-empresa-atual'); if(box)box.innerHTML=`<button class="scae-trocar" data-act="scae-empresas" title="Trocar empresa"><span class="scae-avatar">${db.empresa.logo?`<img src="${esc(db.empresa.logo)}" alt="">`:esc(nome.split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase())}</span><span><b>${esc(nome)}</b><small>Trocar empresa</small></span>${ic('swap','sm')}</button>`;
     if (S.route==='dados' && !$('#scae-logo-perfil')){
       const c=document.createElement('div');c.id='scae-logo-perfil';c.className='card mt';
@@ -9502,9 +9522,9 @@ const SCAE_EMPRESAS = {
       $('#view')?.appendChild(c);
     }
   },
-  abrir(){openModal({title:'Empresas do SCAE',sub:'Escolha qual empresa deseja operar neste navegador.',body:`<div class="scae-emp-lista">${this.lista.map(e=>`<button class="scae-emp-opcao" data-act="scae-empresa-usar" data-id="${esc(e.id)}"><b>${esc(e.nome)}</b><small>${e.id===this.id?'Empresa atual':'Abrir empresa'}</small></button>`).join('')}</div><div class="field mt"><label for="scae-novo-nome">Criar empresa</label><input class="input" id="scae-novo-nome" placeholder="Nome da empresa" maxlength="100"></div>`,foot:`<button class="btn" data-act="close-modal">Fechar</button><button class="btn primary" data-act="scae-empresa-criar">Criar empresa</button>`});},
+  abrir(){openModal({title:'Empresas do SCAE',sub:'Escolha qual empresa deseja operar.',body:`<div class="scae-emp-lista">${this.lista.map(e=>`<button class="scae-emp-opcao" data-act="scae-empresa-usar" data-id="${esc(e.id)}"><b>${esc(e.nome)}</b><small>${e.id===this.id?'Empresa atual':'Abrir empresa'}</small></button>`).join('')}</div><div class="field mt"><label for="scae-novo-nome">Criar empresa</label><input class="input" id="scae-novo-nome" placeholder="Nome da empresa" maxlength="100"></div>`,foot:`<button class="btn" data-act="close-modal">Fechar</button><button class="btn primary" data-act="scae-empresa-criar">Criar empresa</button>`});},
   usar(id){if(!this.lista.some(e=>e.id===id))return;if(id===this.id){closeModal();return;}this.id=id;this.persistir();location.reload();},
-  criar(){const nome=$('#scae-novo-nome')?.value.trim();if(!nome)return toast('Informe o nome da empresa.','err');const id=uid();this.lista.push({id,nome});this.id=id;this.persistir();const novo=emptyDB();novo.empresa.nome=nome;try{localStorage.setItem('scae.empresa.'+id+'.v1',JSON.stringify(novo));}catch{return toast('Não foi possível salvar a empresa neste navegador.','err');}location.reload();},
+  async criar(){const nome=$('#scae-novo-nome')?.value.trim();if(!nome)return toast('Informe o nome da empresa.','err');const id=uid();if(Nuvem.disponivel()){try{await FB.fs.setDoc(FB.fs.doc(FB.db,'empresas',id),{nome,criadaEm:new Date().toISOString()});}catch(e){return toast('Não foi possível criar a empresa na nuvem. Confira a internet e tente de novo.','err');}}this.lista.push({id,nome});this.id=id;this.persistir();const novo=emptyDB();novo.empresa.nome=nome;try{localStorage.setItem('scae.empresa.'+id+'.v1',JSON.stringify(novo));}catch{return toast('Não foi possível salvar a empresa neste navegador.','err');}location.reload();},
   imagem(file){if(!file||file.size>5*1024*1024)return toast('Escolha PNG ou JPG de até 5 MB.','err');const leitor=new FileReader();leitor.onload=()=>{const img=new Image();img.onload=()=>{const fator=Math.min(1,600/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.round(img.width*fator);canvas.height=Math.round(img.height*fator);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);db.empresa.logo=canvas.toDataURL('image/png');if(db.empresa.logo.length>450000)db.empresa.logo=canvas.toDataURL('image/jpeg',.85);save();Documentos.logoCache=null;render();toast('Logo da empresa atualizada.');};img.onerror=()=>toast('Não consegui abrir a imagem.','err');img.src=leitor.result;};leitor.readAsDataURL(file);}
 };
 window.SCAE_EMPRESAS=SCAE_EMPRESAS;
