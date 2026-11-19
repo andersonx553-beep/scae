@@ -37,9 +37,10 @@ class Orcamento(BaseModel):
     emissao: Optional[str] = Field(None, description="Data de emissão no formato AAAA-MM-DD")
     validade_texto: Optional[str] = Field(None, description="Validade como escrita no documento")
     validade_dias: Optional[int] = Field(None, description="Validade em dias, se der para saber")
+    validade_uteis: bool = Field(False, description="True quando a validade for em dias úteis")
     prazo_entrega: Optional[str] = Field(None, description="Prazo ou disponibilidade de entrega, como escrito")
     pagamento: Optional[str] = Field(None, description="Condição de pagamento, como escrita")
-    frete_valor: Optional[float] = Field(None, description="Valor do frete em reais; 0 se for grátis ou CIF; vazio se não informado")
+    frete_valor: Optional[float] = Field(None, description="Valor do frete em reais; 0 só se o documento disser grátis, CIF ou incluso; vazio se o documento não falar de frete")
     frete_texto: Optional[str] = Field(None, description="Como o frete aparece: CIF, FOB, valor, cidade")
     subtotal: Optional[float] = None
     total: Optional[float] = Field(None, description="Total geral do orçamento em reais")
